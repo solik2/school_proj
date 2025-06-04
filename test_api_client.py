@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, AsyncMock
 from client import api_client
 
 @patch('httpx.post')
@@ -38,10 +38,17 @@ def test_approve_reservation(mock_post):
     mock_post.assert_called_once()
 
 import asyncio
-@patch('httpx.AsyncClient.post')
+
+@patch('httpx.AsyncClient.post', new_callable=AsyncMock)
 def test_report_usage(mock_post):
     mock_post.return_value = MagicMock(status_code=200, json=lambda: {'reported': True})
+
     async def run():
         result = await api_client.report_usage('from', 'to', 123, 'http://localhost:8000')
         assert result['reported'] is True
+
     asyncio.run(run())
+    mock_post.assert_awaited_once_with(
+        'http://localhost:8000/report',
+        json={'from_id': 'from', 'to_id': 'to', 'bytes_sent': 123}
+    )
