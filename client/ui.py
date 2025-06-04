@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from pathlib import Path
+from fastapi.middleware.cors import CORSMiddleware
 
 from . import api_client
 from .p2p import get_secret_data
@@ -11,11 +12,44 @@ SERVER = "http://localhost:8000"
 
 app = FastAPI(title="P2P Storage UI")
 
+# Allow CORS for all origins (for development)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-class ApproveBody(BaseModel):
+# --- Models (reuse from server) ---
+class RegisterRequest(BaseModel):
+    id: str
+    endpoint: str
+    available_space: int
+
+class UnregisterRequest(BaseModel):
+    id: str
+
+class Offer(BaseModel):
+    id: str
+    endpoint: str
+    free_space: int
+
+class ReserveRequest(BaseModel):
+    from_id: str
+    to_id: str
+    amount: int
+
+class ApprovalRequest(BaseModel):
+    secret_info: dict
+
+class SecretInfo(BaseModel):
+    secret_info: dict
+
+class PendingRequest(BaseModel):
     reservation_id: str
-    port: int
-
+    from_id: str
+    amount: int
 
 class SendFileBody(BaseModel):
     reservation_id: str
@@ -24,6 +58,7 @@ class SendFileBody(BaseModel):
     file_path: str
 
 
+# --- HTML stays the same ---
 HTML = """<!DOCTYPE html>
 <html lang='en'>
 <head>
@@ -282,12 +317,46 @@ async def index() -> str:
     return HTML
 
 
-@app.post("/approve")
-async def approve(body: ApproveBody):
-    """Approve a reservation and send our connection secret."""
-    secret = get_secret_data(body.port)
-    api_client.approve_reservation(body.reservation_id, secret, SERVER)
-    return {"status": "approved"}
+@app.post("/register")
+async def register(req: RegisterRequest):
+    """Register a new client."""
+    return api_client.register(req, SERVER)
+
+
+@app.post("/unregister")
+async def unregister(req: UnregisterRequest):
+    """Unregister an existing client."""
+    return api_client.unregister(req, SERVER)
+
+
+@app.get("/offers", response_model=list[Offer])
+async def offers(min_space: int = 0):
+    """Get a list of available offers."""
+    return api_client.get_offers(min_space, SERVER)
+
+
+@app.post("/reserve")
+async def reserve(req: ReserveRequest):
+    """Reserve space from a peer."""
+    return api_client.reserve(req, SERVER)
+
+
+@app.get("/requests")
+async def get_requests(for_peer: str):
+    """Get incoming requests for approval."""
+    return api_client.get_requests(for_peer, SERVER)
+
+
+@app.post("/requests/{reservation_id}/approve")
+async def approve_request(reservation_id: str, req: ApprovalRequest):
+    """Approve a pending request."""
+    return api_client.approve_request(reservation_id, req, SERVER)
+
+
+@app.get("/requests/{reservation_id}")
+async def get_secret(reservation_id: str, requester: str):
+    """Get the secret information for a reservation."""
+    return api_client.get_secret(reservation_id, requester, SERVER)
 
 
 @app.post("/send_file")
