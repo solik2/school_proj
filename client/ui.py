@@ -1,7 +1,27 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
+from pydantic import BaseModel
+from pathlib import Path
+
+from . import api_client
+from .p2p import get_secret_data
+from .p2p_ops import p2p_connect_and_send
+
+SERVER = "http://localhost:8000"
 
 app = FastAPI(title="P2P Storage UI")
+
+
+class ApproveBody(BaseModel):
+    reservation_id: str
+    port: int
+
+
+class SendFileBody(BaseModel):
+    reservation_id: str
+    client_id: str
+    port: int
+    file_path: str
 
 HTML = """<!DOCTYPE html>
 <html lang='en'>
@@ -70,6 +90,46 @@ HTML = """<!DOCTYPE html>
         <div id='reserveResult' class='mt-3'></div>
     </section>
 
+    <section id='requests' class='mb-5'>
+        <h2>Incoming Requests</h2>
+        <form id='requestsForm' class='row g-3 mb-3'>
+            <div class='col-md-3'>
+                <label class='form-label'>My ID</label>
+                <input type='text' class='form-control' id='requestsId' required>
+            </div>
+            <div class='col-md-3'>
+                <label class='form-label'>Local Port</label>
+                <input type='number' class='form-control' id='requestsPort' value='9001' required>
+            </div>
+            <div class='col-md-3 align-self-end'>
+                <button class='btn btn-secondary' type='submit'>Refresh</button>
+            </div>
+        </form>
+        <ul id='requestsList' class='list-group'></ul>
+    </section>
+
+    <section id='send' class='mb-5' style='display:none;'>
+        <h2>Send File</h2>
+        <form id='sendForm' class='row g-3'>
+            <input type='hidden' id='sendReservationId'>
+            <div class='col-md-4'>
+                <label class='form-label'>My ID</label>
+                <input type='text' class='form-control' id='sendFrom' required>
+            </div>
+            <div class='col-md-4'>
+                <label class='form-label'>Local Port</label>
+                <input type='number' class='form-control' id='sendPort' value='9001' required>
+            </div>
+            <div class='col-md-4'>
+                <label class='form-label'>File Path</label>
+                <input type='text' class='form-control' id='filePath' required>
+            </div>
+            <div class='col-12'>
+                <button class='btn btn-primary' type='submit'>Send</button>
+            </div>
+        </form>
+    </section>
+
 <script>
 const SERVER = 'http://localhost:8000';
 
@@ -129,6 +189,56 @@ document.getElementById('reserveForm').addEventListener('submit', async e => {
     };
     const result = await api('/reserve', 'POST', payload);
     document.getElementById('reserveResult').textContent = 'Reservation ID: ' + result.reservation_id;
+    const rid = result.reservation_id;
+    const fromId = payload.from_id;
+    const sendSection = document.getElementById('send');
+    document.getElementById('sendReservationId').value = rid;
+    document.getElementById('sendFrom').value = fromId;
+    const check = async () => {
+        try {
+            await api('/requests/' + rid + '?requester=' + fromId);
+            clearInterval(timer);
+            sendSection.style.display = '';
+            document.getElementById('reserveResult').textContent += ' - approved';
+        } catch {}
+    };
+    const timer = setInterval(check, 3000);
+});
+
+document.getElementById('requestsForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const id = document.getElementById('requestsId').value;
+    const port = parseInt(document.getElementById('requestsPort').value, 10);
+    const list = document.getElementById('requestsList');
+    const reqs = await api('/requests?for=' + id);
+    list.innerHTML = '';
+    reqs.forEach(r => {
+        const li = document.createElement('li');
+        li.className = 'list-group-item d-flex justify-content-between align-items-center';
+        li.textContent = r.reservation_id + ' from ' + r.from_id + ' (' + r.amount + ' MB)';
+        const btn = document.createElement('button');
+        btn.className = 'btn btn-sm btn-primary ms-2';
+        btn.textContent = 'Approve';
+        btn.onclick = async () => {
+            btn.disabled = true;
+            await fetch('/approve', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({reservation_id: r.reservation_id, port})});
+            li.textContent += ' - approved';
+        };
+        li.appendChild(btn);
+        list.appendChild(li);
+    });
+});
+
+document.getElementById('sendForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const body = {
+        reservation_id: document.getElementById('sendReservationId').value,
+        client_id: document.getElementById('sendFrom').value,
+        port: parseInt(document.getElementById('sendPort').value, 10),
+        file_path: document.getElementById('filePath').value
+    };
+    await fetch('/send_file', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
+    alert('Send initiated');
 });
 </script>
 </body>
@@ -138,3 +248,29 @@ document.getElementById('reserveForm').addEventListener('submit', async e => {
 async def index() -> str:
     """Return the basic HTML skeleton for the UI."""
     return HTML
+
+
+@app.post("/approve")
+async def approve(body: ApproveBody):
+    """Approve a reservation and send our connection secret."""
+    secret = get_secret_data(body.port)
+    api_client.approve_reservation(body.reservation_id, secret, SERVER)
+    return {"status": "approved"}
+
+
+@app.post("/send_file")
+async def send_file(body: SendFileBody):
+    """Send a file to the peer once the reservation is approved."""
+    file_path = Path(body.file_path)
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="File not found")
+    await p2p_connect_and_send(
+        body.reservation_id,
+        body.client_id,
+        body.port,
+        file_path,
+        SERVER,
+        api_client.report_usage,
+    )
+    return {"status": "sent"}
+
