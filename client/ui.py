@@ -23,6 +23,7 @@ class SendFileBody(BaseModel):
     port: int
     file_path: str
 
+
 HTML = """<!DOCTYPE html>
 <html lang='en'>
 <head>
@@ -50,6 +51,7 @@ HTML = """<!DOCTYPE html>
             </div>
             <div class='col-12'>
                 <button class='btn btn-primary' type='submit'>Register</button>
+                <button class='btn btn-secondary ms-2' type='button' id='unregisterBtn' style='display:none;'>Unregister</button>
             </div>
         </form>
     </section>
@@ -144,6 +146,22 @@ function api(path, method='GET', body=null) {
     });
 }
 
+let clientId = localStorage.getItem('clientId') || '';
+function applyClientId(id) {
+    document.getElementById('regId').value = id;
+    document.getElementById('reserveFrom').value = id;
+    document.getElementById('requestsId').value = id;
+    document.getElementById('sendFrom').value = id;
+    const disabled = id !== '';
+    document.getElementById('regId').disabled = disabled;
+    document.getElementById('reserveFrom').disabled = disabled;
+    document.getElementById('requestsId').disabled = disabled;
+    document.getElementById('sendFrom').disabled = disabled;
+    document.getElementById('unregisterBtn').style.display = disabled ? '' : 'none';
+}
+
+applyClientId(clientId);
+
 document.getElementById('registerForm').addEventListener('submit', async e => {
     e.preventDefault();
     const payload = {
@@ -153,10 +171,23 @@ document.getElementById('registerForm').addEventListener('submit', async e => {
     };
     try {
         await api('/register', 'POST', payload);
+        localStorage.setItem('clientId', payload.id);
+        clientId = payload.id;
+        applyClientId(clientId);
         alert('Registration successful');
     } catch (err) {
         alert('Registration failed');
     }
+});
+
+document.getElementById('unregisterBtn').addEventListener('click', async () => {
+    if (!clientId) return;
+    await api('/unregister', 'POST', {id: clientId});
+    localStorage.removeItem('clientId');
+    clientId = '';
+    applyClientId(clientId);
+    document.getElementById('regEndpoint').value = '';
+    document.getElementById('regSpace').value = '';
 });
 
 document.getElementById('offersForm').addEventListener('submit', async e => {
@@ -183,14 +214,14 @@ document.getElementById('offersForm').addEventListener('submit', async e => {
 document.getElementById('reserveForm').addEventListener('submit', async e => {
     e.preventDefault();
     const payload = {
-        from_id: document.getElementById('reserveFrom').value,
+        from_id: clientId,
         to_id: document.getElementById('reserveTo').value,
         amount: parseInt(document.getElementById('reserveAmount').value, 10)
     };
     const result = await api('/reserve', 'POST', payload);
     document.getElementById('reserveResult').textContent = 'Reservation ID: ' + result.reservation_id;
     const rid = result.reservation_id;
-    const fromId = payload.from_id;
+    const fromId = clientId;
     const sendSection = document.getElementById('send');
     document.getElementById('sendReservationId').value = rid;
     document.getElementById('sendFrom').value = fromId;
@@ -207,7 +238,7 @@ document.getElementById('reserveForm').addEventListener('submit', async e => {
 
 document.getElementById('requestsForm').addEventListener('submit', async e => {
     e.preventDefault();
-    const id = document.getElementById('requestsId').value;
+    const id = clientId;
     const port = parseInt(document.getElementById('requestsPort').value, 10);
     const list = document.getElementById('requestsList');
     const reqs = await api('/requests?for=' + id);
@@ -233,7 +264,7 @@ document.getElementById('sendForm').addEventListener('submit', async e => {
     e.preventDefault();
     const body = {
         reservation_id: document.getElementById('sendReservationId').value,
-        client_id: document.getElementById('sendFrom').value,
+        client_id: clientId,
         port: parseInt(document.getElementById('sendPort').value, 10),
         file_path: document.getElementById('filePath').value
     };
@@ -243,6 +274,7 @@ document.getElementById('sendForm').addEventListener('submit', async e => {
 </script>
 </body>
 </html>"""
+
 
 @app.get("/", response_class=HTMLResponse)
 async def index() -> str:
@@ -273,4 +305,3 @@ async def send_file(body: SendFileBody):
         api_client.report_usage,
     )
     return {"status": "sent"}
-
