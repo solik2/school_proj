@@ -9,8 +9,12 @@ async def p2p_receive(reservation_id, local_port, storage_dir, server):
 
     p2p = P2PConnection(local_port)
     await p2p.connect_to_peer(peer_secret)
-    # TODO: implement file-receiving logic here
+    storage_dir.mkdir(parents=True, exist_ok=True)
+    out_file = storage_dir / f"{reservation_id}.data"
+    with out_file.open("wb") as f:
+        p2p.receive_data(f)
     p2p.close()
+    return out_file
 
 async def p2p_connect_and_send(reservation_id, client_id, local_port, file_path, server, report_usage_func):
     secret = await fetch_peer_secret(reservation_id, client_id, server)
