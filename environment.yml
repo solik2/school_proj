@@ -1,0 +1,15 @@
+name: p2p-storage
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  - fastapi
+  - uvicorn
+  - pydantic
+  - pyjwt
+  - httpx
+  - typer
+  - pip
+  - pip:
+    - upnpy
+    - pystun3

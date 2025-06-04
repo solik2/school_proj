@@ -1,0 +1,14 @@
+{
+  "clients": {
+    "Alice": {
+      "id": "Alice",
+      "endpoint": "127.0.0.1:9002",
+      "available_space": 50
+    },
+    "Bob": {
+      "id": "Bob",
+      "endpoint": "127.0.0.1:9003",
+      "available_space": 100
+    }
+  }
+}
