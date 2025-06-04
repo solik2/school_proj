@@ -287,7 +287,9 @@ document.getElementById('requestsForm').addEventListener('submit', async e => {
         btn.textContent = 'Approve';
         btn.onclick = async () => {
             btn.disabled = true;
-            await fetch('/approve', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({reservation_id: r.reservation_id, port})});
+            // Call a new endpoint on your UI FastAPI app to get the secret data for the port
+            const secret = await api('/get_secret_data?port=' + port);
+            await api('/requests/' + r.reservation_id + '/approve', 'POST', {secret_info: secret});
             li.textContent += ' - approved';
         };
         li.appendChild(btn);
@@ -374,3 +376,7 @@ async def send_file(body: SendFileBody):
         api_client.report_usage,
     )
     return {"status": "sent"}
+
+@app.get("/get_secret_data")
+async def get_secret_data_endpoint(port: int):
+    return get_secret_data(port)
