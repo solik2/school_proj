@@ -121,14 +121,6 @@ HTML = """<!DOCTYPE html>
                 <input type='number' class='form-control' id='reserveAmount' required>
             </div>
             <div class='col-12'>
-function updateSections(id){
-    const show = id !== "";
-    ["offers","reserve","requests","send"].forEach(s=>{
-        document.getElementById(s).style.display = show ? "" : "none";
-    });
-}
-
-    updateSections(id);
                 <button class='btn btn-primary' type='submit'>Reserve</button>
             </div>
         </form>
@@ -295,8 +287,12 @@ document.getElementById('requestsForm').addEventListener('submit', async e => {
         btn.textContent = 'Approve';
         btn.onclick = async () => {
             btn.disabled = true;
-            // Call a new endpoint on your UI FastAPI app to get the secret data for the port
-            const secret = await api('/get_secret_data?port=' + port);
+            // Get the local secret info from the host's port (UI backend)
+            const secret = await fetch('/get_secret_data?port=' + port)
+                .then(res => {
+                    if (!res.ok) throw new Error('Failed to get secret data');
+                    return res.json();
+                });
             await api('/requests/' + r.reservation_id + '/approve', 'POST', {secret_info: secret});
             li.textContent += ' - approved';
         };
@@ -385,6 +381,12 @@ async def send_file(body: SendFileBody):
     )
     return {"status": "sent"}
 
+
 @app.get("/get_secret_data")
 async def get_secret_data_endpoint(port: int):
-    return get_secret_data(port)
+    """Return the secret data for the given local port."""
+    try:
+        secret = get_secret_data(port)
+        return secret
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

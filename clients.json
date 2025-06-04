@@ -1,14 +1,19 @@
 {
   "clients": {
-    "Alice": {
-      "id": "Alice",
-      "endpoint": "127.0.0.1:9002",
-      "available_space": 50
-    },
-    "Bob": {
-      "id": "Bob",
-      "endpoint": "127.0.0.1:9003",
+    "peer1": {
+      "id": "peer1",
+      "endpoint": "127.0.0.1:9001",
       "available_space": 100
+    },
+    "pe1": {
+      "id": "pe1",
+      "endpoint": "127.0.0.1",
+      "available_space": 53
+    },
+    "pe2": {
+      "id": "pe2",
+      "endpoint": "127.0.0.9003",
+      "available_space": 423
     }
   }
 }
