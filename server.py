@@ -2,7 +2,6 @@ from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel
 import uuid
 from typing import List
-from fastapi import Query
 import json
 from pathlib import Path
 
