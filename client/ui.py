@@ -121,6 +121,14 @@ HTML = """<!DOCTYPE html>
                 <input type='number' class='form-control' id='reserveAmount' required>
             </div>
             <div class='col-12'>
+function updateSections(id){
+    const show = id !== "";
+    ["offers","reserve","requests","send"].forEach(s=>{
+        document.getElementById(s).style.display = show ? "" : "none";
+    });
+}
+
+    updateSections(id);
                 <button class='btn btn-primary' type='submit'>Reserve</button>
             </div>
         </form>
