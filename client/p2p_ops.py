@@ -3,7 +3,7 @@ from p2p import P2PConnection, fetch_peer_secret, get_secret_data
 
 async def p2p_receive(reservation_id, local_port, storage_dir, server):
     secret_data = get_secret_data(local_port)
-    # Fetch peer secret (blocking for now)
+    # Fetch peer secret asynchronously
     peer_secret = await fetch_peer_secret(reservation_id, secret_data["id"], server)
     p2p = P2PConnection(local_port)
     await p2p.connect_to_peer(peer_secret)
