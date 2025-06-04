@@ -1,5 +1,5 @@
 import asyncio
-from p2p import P2PConnection, fetch_peer_secret, get_secret_data
+from .p2p import P2PConnection, fetch_peer_secret, get_secret_data
 
 async def p2p_receive(reservation_id, local_port, storage_dir, server):
     secret_data = get_secret_data(local_port)
