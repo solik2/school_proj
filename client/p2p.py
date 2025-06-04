@@ -80,9 +80,14 @@ def get_secret_data(local_port: int) -> dict:
     # Try UPnP first
     external_ip = nat.setup_upnp()
     
-    # If UPnP fails, use STUN
+    # If UPnP fails, try STUN
     if not external_ip:
-        external_ip, external_port = nat.get_stun_info()
+        try:
+            external_ip, external_port = nat.get_stun_info()
+        except Exception as e:
+            print(f"STUN failed: {e}")
+            external_ip = nat._get_local_ip()
+            external_port = local_port
     else:
         external_port = local_port
         
