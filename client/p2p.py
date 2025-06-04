@@ -39,8 +39,14 @@ class NATTraversal:
         return socket.gethostbyname(socket.gethostname())
 
     def get_stun_info(self) -> tuple:
-        nat_type, external_ip, external_port = stun.get_ip_info()
-        return external_ip, external_port
+        try:
+            nat_type, external_ip, external_port = stun.get_ip_info()
+            return external_ip, external_port
+        except Exception as e:
+            print(f"STUN failed: {e}")
+            # Fallback to local interface if STUN is unavailable
+            local_ip = self._get_local_ip()
+            return local_ip, self.local_port
 
 SecretData = {
     "local_endpoint": "ip:port",      # the peer's listening address
