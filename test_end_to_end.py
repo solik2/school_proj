@@ -6,9 +6,8 @@ from pathlib import Path
 import time
 import asyncio
 
-from client import api_client
-from client.p2p import get_secret_data
-from client.p2p_ops import p2p_connect_and_send
+from client import core as api_client
+from client.core import get_secret_data, p2p_connect_and_send
 
 SERVER_URL = "http://localhost:8000"
 
