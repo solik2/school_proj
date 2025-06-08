@@ -3,9 +3,8 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from pathlib import Path
 
-from . import api_client
-from .p2p import get_secret_data
-from .p2p_ops import p2p_connect_and_send
+from . import core
+from .core import get_secret_data, p2p_connect_and_send
 
 SERVER = "http://localhost:8000"
 
@@ -254,7 +253,7 @@ async def index() -> str:
 async def approve(body: ApproveBody):
     """Approve a reservation and send our connection secret."""
     secret = get_secret_data(body.port)
-    api_client.approve_reservation(body.reservation_id, secret, SERVER)
+    core.approve_reservation(body.reservation_id, secret, SERVER)
     return {"status": "approved"}
 
 
@@ -270,7 +269,7 @@ async def send_file(body: SendFileBody):
         body.port,
         file_path,
         SERVER,
-        api_client.report_usage,
+        core.report_usage,
     )
     return {"status": "sent"}
 

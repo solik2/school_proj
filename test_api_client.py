@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import patch, MagicMock, AsyncMock
-from client import api_client
+from client import core as api_client
 
 @patch('httpx.post')
 def test_register(mock_post):

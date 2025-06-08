@@ -1,1 +1,5 @@
-# This file marks the client/ directory as a Python package.
+"""Convenience exports for the client package."""
+
+from . import core
+
+__all__ = ["core"]
